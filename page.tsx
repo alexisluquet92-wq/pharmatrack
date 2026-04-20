@@ -1,6 +1,7 @@
 "use client";
-import Sidebar from "@/components/Sidebar";
-import Header from "@/components/Header";
+// Legacy file - routing handled by app/ directory
+function Sidebar() { return null; }
+function Header({ title }: { title?: string }) { return <h1>{title}</h1>; }
 
 export default function SubscriptionPage() {
   return (

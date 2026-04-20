@@ -1,6 +1,8 @@
 'use client';
 import { X } from 'lucide-react';
-import { Drug, ParaProduct, ActionType } from '@/lib/data';
+type ActionType = 'retour' | 'liquidation' | 'promotion' | 'surveillance';
+interface Drug { id: string; name: string; stock: number; pricePerUnit: number; daysLeft: number; lab: string; form: string; [k: string]: unknown; }
+type ParaProduct = Drug;
 import { useState } from 'react';
 
 type Item = Drug | ParaProduct;
@@ -40,7 +42,7 @@ export default function ActionModal({ drug, action, onConfirm, onClose }: Props)
           <div>
             <div style={{ fontSize: 22, marginBottom: 4 }}>{c.icon}</div>
             <div className="modal-title">{c.title}</div>
-            <div className="modal-subtitle">{drug.name} · Stock: {drug.stock} unités · Expire: {'expiryDate' in drug ? drug.expiryDate : ''}</div>
+            <div className="modal-subtitle">{drug.name} · Stock: {drug.stock} unités · Expire: {'expiryDate' in drug ? String(drug.expiryDate) : ''}</div>
           </div>
           <button onClick={onClose} className="btn btn-ghost btn-icon btn-sm"><X size={18} /></button>
         </div>
