@@ -1,13 +1,13 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { Download, Tag, RotateCcw, Search } from 'lucide-react';
+import { Download, Tag, Search } from 'lucide-react';
 import { sdb } from '@/lib/supabase-db';
 import { computeUrgency, daysUntil, isPharmaceutical } from '@/lib/data';
 import type { Product } from '@/lib/data';
 import toast, { Toaster } from 'react-hot-toast';
 
 type Filter = 'all' | 'expired' | 'critical' | 'warning' | 'ok';
-type Tag = 'liquidation' | 'promotion' | null;
+type TagValue = 'liquidation' | 'promotion' | null;
 
 export default function AlertsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -15,8 +15,7 @@ export default function AlertsPage() {
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
   const [tagModal, setTagModal] = useState<Product | null>(null);
-  const [tagValue, setTagValue] = useState<Tag>(null);
-  const [remisePct, setRemisePct] = useState('');
+  const [tagValue, setTagValue] = useState<TagValue>(null);
 
   const reload = useCallback(() => {
     sdb.products.getAll().then(p => { setProducts(p); setLoading(false); });
@@ -58,7 +57,7 @@ export default function AlertsPage() {
       ]),
     ];
     const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = 'alertes_pharmatrack.csv'; a.click();
@@ -68,9 +67,7 @@ export default function AlertsPage() {
 
   async function saveTag() {
     if (!tagModal) return;
-    const remise = remisePct ? parseFloat(remisePct) : null;
-    const prixRemise = remise ? tagModal.prix_unitaire * (1 - remise / 100) : null;
-    await sdb.products.update(tagModal.id, { tag: tagValue, remise_pct: remise, prix_remise: prixRemise });
+    await sdb.products.update(tagModal.id, { tag: tagValue });
     toast.success(tagValue ? `Tag "${tagValue}" appliqué` : 'Tag supprimé');
     setTagModal(null);
     reload();
@@ -170,11 +167,9 @@ export default function AlertsPage() {
                     {p.urgency === 'expired' ? 'Périmé' : p.urgency === 'critical' ? 'Critique' : p.urgency === 'warning' ? 'Attention' : 'OK'}
                   </span></td>
                   <td>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button className="btn btn-sm btn-secondary" title="Tagger" onClick={() => { setTagModal(p); setTagValue(p.tag || null); setRemisePct(p.remise_pct ? String(p.remise_pct) : ''); }}>
-                        <Tag size={13} />
-                      </button>
-                    </div>
+                    <button className="btn btn-sm btn-secondary" title="Tagger" onClick={() => { setTagModal(p); setTagValue(p.tag || null); }}>
+                      <Tag size={13} />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -185,10 +180,10 @@ export default function AlertsPage() {
 
       {tagModal && (
         <div style={{ position: 'fixed', inset: 0, background: '#0008', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: 'var(--surface)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 420, boxShadow: 'var(--shadow-lg)' }}>
+          <div style={{ background: 'var(--surface)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 380, boxShadow: 'var(--shadow-lg)' }}>
             <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 6 }}>Tagger le produit</div>
             <div style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 20 }}>{tagModal.nom}</div>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: 24 }}>
               <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 8 }}>Type de tag</label>
               <div style={{ display: 'flex', gap: 8 }}>
                 {(['liquidation', 'promotion', null] as const).map(t => (
@@ -199,13 +194,6 @@ export default function AlertsPage() {
                 ))}
               </div>
             </div>
-            {tagValue && (
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Remise (%)</label>
-                <input className="form-input" type="number" min="0" max="99" placeholder="Ex: 20" value={remisePct} onChange={e => setRemisePct(e.target.value)} />
-                {remisePct && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Prix remisé : {(tagModal.prix_unitaire * (1 - parseFloat(remisePct) / 100)).toFixed(2)} €</div>}
-              </div>
-            )}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button className="btn btn-secondary" onClick={() => setTagModal(null)}>Annuler</button>
               <button className="btn btn-primary" onClick={saveTag}>Enregistrer</button>

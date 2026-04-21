@@ -1,6 +1,6 @@
 'use client';
 import { createClient } from '@/lib/supabase';
-import type { Product, Return, ReturnItem, AlertsConfig, ImportHistory, Pharmacy } from '@/lib/data';
+import type { Product, Return, Alert, Parapharmacie, ImportHistory, Pharmacy } from '@/lib/data';
 
 async function getUid(): Promise<string> {
   const supabase = createClient();
@@ -8,11 +8,6 @@ async function getUid(): Promise<string> {
   if (!user) throw new Error('Not authenticated');
   return user.id;
 }
-
-const DEFAULT_ALERTS: AlertsConfig = {
-  seuil_critique: 30, seuil_urgent: 60, seuil_attention: 90,
-  email_notifications: false, email_address: '',
-};
 
 export const sdb = {
   pharmacy: {
@@ -27,7 +22,7 @@ export const sdb = {
     upsert: async (partial: Partial<Omit<Pharmacy, 'id'>>): Promise<void> => {
       const supabase = createClient();
       const uid = await getUid();
-      await supabase.from('profiles').upsert({ id: uid, ...partial, updated_at: new Date().toISOString() });
+      await supabase.from('profiles').upsert({ id: uid, ...partial });
     },
   },
 
@@ -42,25 +37,24 @@ export const sdb = {
     upsert: async (items: Partial<Product>[]): Promise<{ imported: number }> => {
       const supabase = createClient();
       const uid = await getUid();
-      const now = new Date().toISOString();
       const withCip = items.filter(i => i.cip_code);
       const withoutCip = items.filter(i => !i.cip_code);
       if (withCip.length > 0) {
         await supabase.from('products').upsert(
-          withCip.map(i => ({ ...i, user_id: uid, created_at: now, updated_at: now })),
+          withCip.map(i => ({ ...i, user_id: uid })),
           { onConflict: 'user_id,cip_code' }
         );
       }
       if (withoutCip.length > 0) {
         await supabase.from('products').insert(
-          withoutCip.map(i => ({ ...i, user_id: uid, created_at: now, updated_at: now }))
+          withoutCip.map(i => ({ ...i, user_id: uid }))
         );
       }
       return { imported: items.length };
     },
     update: async (id: string, partial: Partial<Product>): Promise<void> => {
       const supabase = createClient();
-      await supabase.from('products').update({ ...partial, updated_at: new Date().toISOString() }).eq('id', id);
+      await supabase.from('products').update(partial).eq('id', id);
     },
     delete: async (id: string): Promise<void> => {
       const supabase = createClient();
@@ -77,17 +71,15 @@ export const sdb = {
     getAll: async (): Promise<Return[]> => {
       const supabase = createClient();
       const { data, error } = await supabase
-        .from('returns').select('*').order('date_creation', { ascending: false });
+        .from('returns').select('*').order('date_retour', { ascending: false });
       if (error) { console.error(error); return []; }
       return (data || []) as Return[];
     },
-    insert: async (data: Partial<Return>): Promise<Return> => {
+    insert: async (data: Omit<Return, 'id' | 'user_id'>): Promise<Return> => {
       const supabase = createClient();
       const uid = await getUid();
-      const now = new Date().toISOString();
       const { data: row, error } = await supabase.from('returns').insert({
-        ...data, user_id: uid, date_creation: now,
-        date_envoi: null, date_validation: null, reference_retour: null,
+        ...data, user_id: uid,
       }).select().single();
       if (error) throw error;
       return row as Return;
@@ -102,38 +94,49 @@ export const sdb = {
     },
   },
 
-  returnItems: {
-    getByReturn: async (returnId: string): Promise<ReturnItem[]> => {
+  alerts: {
+    getAll: async (): Promise<Alert[]> => {
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from('return_items').select('*').eq('return_id', returnId);
+      const { data, error } = await supabase.from('alerts').select('*');
       if (error) { console.error(error); return []; }
-      return (data || []) as ReturnItem[];
+      return (data || []) as Alert[];
     },
-    insert: async (item: Partial<ReturnItem>): Promise<ReturnItem> => {
+    upsert: async (productId: string, type: string, joursSeuil: number): Promise<void> => {
       const supabase = createClient();
-      const { data, error } = await supabase.from('return_items').insert(item).select().single();
-      if (error) throw error;
-      return data as ReturnItem;
+      const uid = await getUid();
+      await supabase.from('alerts').upsert(
+        { user_id: uid, product_id: productId, type, jours_seuil: joursSeuil, is_active: true },
+        { onConflict: 'user_id,product_id,type' }
+      );
     },
     delete: async (id: string): Promise<void> => {
       const supabase = createClient();
-      await supabase.from('return_items').delete().eq('id', id);
+      await supabase.from('alerts').delete().eq('id', id);
     },
   },
 
-  alertsConfig: {
-    get: async (): Promise<AlertsConfig> => {
+  parapharmacie: {
+    getAll: async (): Promise<Parapharmacie[]> => {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return { ...DEFAULT_ALERTS };
-      const { data } = await supabase.from('alerts_config').select('*').eq('user_id', user.id).single();
-      return (data as AlertsConfig) || { ...DEFAULT_ALERTS };
+      const { data, error } = await supabase
+        .from('parapharmacie').select('*').order('date_expiration', { ascending: true });
+      if (error) { console.error(error); return []; }
+      return (data || []) as Parapharmacie[];
     },
-    update: async (partial: Partial<AlertsConfig>): Promise<void> => {
+    insert: async (item: Omit<Parapharmacie, 'id' | 'user_id'>): Promise<Parapharmacie> => {
       const supabase = createClient();
       const uid = await getUid();
-      await supabase.from('alerts_config').upsert({ user_id: uid, ...partial, updated_at: new Date().toISOString() });
+      const { data, error } = await supabase.from('parapharmacie').insert({ ...item, user_id: uid }).select().single();
+      if (error) throw error;
+      return data as Parapharmacie;
+    },
+    update: async (id: string, partial: Partial<Parapharmacie>): Promise<void> => {
+      const supabase = createClient();
+      await supabase.from('parapharmacie').update(partial).eq('id', id);
+    },
+    delete: async (id: string): Promise<void> => {
+      const supabase = createClient();
+      await supabase.from('parapharmacie').delete().eq('id', id);
     },
   },
 

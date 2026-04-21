@@ -24,15 +24,17 @@ export default function ReportsPage() {
     </div>
   );
 
-  const validated = returns.filter(r => r.status === 'valide');
-  const totalReturned = validated.reduce((s, r) => s + (r.total_valeur || 0), 0);
+  const validated = returns.filter(r => r.statut === 'valide');
+  const totalReturned = validated.reduce((s, r) => s + (r.montant_estime || 0), 0);
   const totalAtRisk = products.filter(p => computeUrgency(p.date_expiration) !== 'ok').reduce((s, p) => s + p.stock * p.prix_unitaire, 0);
-  const savedEstimate = totalReturned * 0.85; // estimated net recovery after lab deductions
+  const savedEstimate = totalReturned * 0.85;
 
   // Returns by lab
   const labMap: Record<string, number> = {};
   returns.forEach(r => {
-    labMap[r.laboratoire] = (labMap[r.laboratoire] || 0) + (r.total_valeur || 0);
+    if (r.laboratoire) {
+      labMap[r.laboratoire] = (labMap[r.laboratoire] || 0) + (r.montant_estime || 0);
+    }
   });
   const labData = Object.entries(labMap)
     .map(([lab, val]) => ({ lab, val }))
@@ -48,14 +50,16 @@ export default function ReportsPage() {
     monthly[key] = 0;
   }
   returns.forEach(r => {
-    const d = new Date(r.date_creation);
+    const d = new Date(r.date_retour);
     const key = d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
-    if (key in monthly) monthly[key] += r.total_valeur || 0;
+    if (key in monthly) monthly[key] += r.montant_estime || 0;
   });
   const monthlyData = Object.entries(monthly).map(([month, val]) => ({ month, val }));
 
   const fmt = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const COLORS = ['#0ea5e9', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#84cc16'];
+  const STATUT_LABELS: Record<string, string> = { en_attente: 'En attente', valide: 'Validé', refuse: 'Refusé' };
+  const STATUT_BADGES: Record<string, string> = { en_attente: 'badge-gray', valide: 'badge-ok', refuse: 'badge-expired' };
 
   return (
     <div className="fade-in">
@@ -142,26 +146,21 @@ export default function ReportsPage() {
 
       {returns.length > 0 && (
         <div className="card">
-          <div className="card-header"><div className="card-title">Détail des dossiers</div></div>
+          <div className="card-header"><div className="card-title">Détail des retours</div></div>
           <div className="table-scroll">
             <table className="data-table">
-              <thead><tr><th>Laboratoire</th><th>Statut</th><th>Valeur</th><th>Créé le</th><th>Envoyé le</th><th>Validé le</th></tr></thead>
+              <thead><tr><th>Produit</th><th>Laboratoire</th><th>Qté</th><th>Montant estimé</th><th>Statut</th><th>Date retour</th></tr></thead>
               <tbody>
-                {returns.map(r => {
-                  const s = r.status as 'brouillon' | 'envoye' | 'valide';
-                  const badges = { brouillon: 'badge-gray', envoye: 'badge-blue', valide: 'badge-ok' };
-                  const labels = { brouillon: 'Brouillon', envoye: 'Envoyé', valide: 'Validé' };
-                  return (
-                    <tr key={r.id}>
-                      <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{r.laboratoire}</td>
-                      <td><span className={`badge ${badges[s]}`}>{labels[s]}</span></td>
-                      <td style={{ fontWeight: 700 }}>{fmt(r.total_valeur || 0)} €</td>
-                      <td>{new Date(r.date_creation).toLocaleDateString('fr-FR')}</td>
-                      <td>{r.date_envoi ? new Date(r.date_envoi).toLocaleDateString('fr-FR') : '—'}</td>
-                      <td>{r.date_validation ? new Date(r.date_validation).toLocaleDateString('fr-FR') : '—'}</td>
-                    </tr>
-                  );
-                })}
+                {returns.map(r => (
+                  <tr key={r.id}>
+                    <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{r.nom_produit}</td>
+                    <td>{r.laboratoire || '—'}</td>
+                    <td>{r.quantite}</td>
+                    <td style={{ fontWeight: 700 }}>{r.montant_estime != null ? `${fmt(r.montant_estime)} €` : '—'}</td>
+                    <td><span className={`badge ${STATUT_BADGES[r.statut] || 'badge-gray'}`}>{STATUT_LABELS[r.statut] || r.statut}</span></td>
+                    <td>{new Date(r.date_retour).toLocaleDateString('fr-FR')}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

@@ -1,29 +1,27 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Save, Building2, Bell, Lock } from 'lucide-react';
+import { Save, Building2, Lock } from 'lucide-react';
 import { sdb } from '@/lib/supabase-db';
 import { createClient } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
-import type { Pharmacy, AlertsConfig } from '@/lib/data';
+import type { Pharmacy } from '@/lib/data';
 import toast, { Toaster } from 'react-hot-toast';
 
-type Tab = 'pharmacie' | 'alertes' | 'securite';
+type Tab = 'pharmacie' | 'securite';
 
 export default function SettingsPage() {
   const { pharmacy, refreshPharmacy } = useAuth();
   const [tab, setTab] = useState<Tab>('pharmacie');
   const [pharmaForm, setPharmaForm] = useState<Partial<Pharmacy>>({});
-  const [alertsForm, setAlertsForm] = useState<AlertsConfig>({ seuil_critique: 30, seuil_urgent: 60, seuil_attention: 90, email_notifications: false, email_address: '' });
   const [pwdForm, setPwdForm] = useState({ newPwd: '', confirm: '' });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setPharmaForm({
-      nom: pharmacy.nom, finess: pharmacy.finess, adresse: pharmacy.adresse,
+      nom: pharmacy.nom, adresse: pharmacy.adresse,
       code_postal: pharmacy.code_postal, ville: pharmacy.ville,
       telephone: pharmacy.telephone, email: pharmacy.email, pharmacien: pharmacy.pharmacien,
     });
-    sdb.alertsConfig.get().then(cfg => setAlertsForm(cfg));
   }, [pharmacy]);
 
   async function savePharmacie() {
@@ -31,13 +29,6 @@ export default function SettingsPage() {
     await sdb.pharmacy.upsert(pharmaForm);
     refreshPharmacy();
     toast.success('Informations sauvegardées');
-    setSaving(false);
-  }
-
-  async function saveAlertes() {
-    setSaving(true);
-    await sdb.alertsConfig.update(alertsForm);
-    toast.success('Configuration des alertes sauvegardée');
     setSaving(false);
   }
 
@@ -71,7 +62,6 @@ export default function SettingsPage() {
 
   const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
     { key: 'pharmacie', label: 'Ma pharmacie', icon: <Building2 size={15} /> },
-    { key: 'alertes', label: 'Alertes', icon: <Bell size={15} /> },
     { key: 'securite', label: 'Sécurité', icon: <Lock size={15} /> },
   ];
 
@@ -111,10 +101,6 @@ export default function SettingsPage() {
             </div>
           </div>
           <div style={{ marginBottom: 16 }}>
-            <label htmlFor="finess" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Numéro FINESS</label>
-            <input {...inputProps('0000000000', 'finess')} style={{ maxWidth: 200 }} />
-          </div>
-          <div style={{ marginBottom: 16 }}>
             <label htmlFor="adresse" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Adresse</label>
             <input {...inputProps('1 rue de la Paix', 'adresse')} />
           </div>
@@ -139,54 +125,6 @@ export default function SettingsPage() {
             </div>
           </div>
           <button className="btn btn-primary" onClick={savePharmacie} disabled={saving}>
-            <Save size={15} />{saving ? 'Sauvegarde…' : 'Sauvegarder'}
-          </button>
-        </div>
-      )}
-
-      {tab === 'alertes' && (
-        <div className="card" style={{ maxWidth: 500 }}>
-          <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 24 }}>Configuration des alertes</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginBottom: 24 }}>
-            {([
-              { key: 'seuil_critique' as const, label: 'Seuil critique', color: 'var(--red-600)', desc: 'Alertes rouges' },
-              { key: 'seuil_urgent' as const, label: 'Seuil urgent', color: 'var(--orange-600)', desc: 'Alertes orange' },
-              { key: 'seuil_attention' as const, label: 'Seuil attention', color: 'var(--yellow-600)', desc: 'Alertes jaunes' },
-            ]).map(({ key, label, color, desc }) => (
-              <div key={key}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <div>
-                    <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)' }}>{label}</span>
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 8 }}>{desc}</span>
-                  </div>
-                  <span style={{ fontWeight: 800, color, fontSize: 18 }}>{alertsForm[key]}j</span>
-                </div>
-                <input type="range" min="7" max="180" value={alertsForm[key]}
-                  onChange={e => setAlertsForm(f => ({ ...f, [key]: parseInt(e.target.value) }))}
-                  style={{ width: '100%', accentColor: color }} />
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-                  <span>7 jours</span><span>180 jours</span>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 20, marginBottom: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <label style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)' }}>Notifications email</label>
-              <button onClick={() => setAlertsForm(f => ({ ...f, email_notifications: !f.email_notifications }))}
-                style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', transition: 'background .2s',
-                  background: alertsForm.email_notifications ? 'var(--brand-500)' : 'var(--border)', position: 'relative' }}>
-                <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#fff', position: 'absolute', top: 3, transition: 'left .2s',
-                  left: alertsForm.email_notifications ? 23 : 3, boxShadow: '0 1px 4px #0002' }} />
-              </button>
-            </div>
-            {alertsForm.email_notifications && (
-              <input className="form-input" type="email" placeholder="alerts@pharmacie.fr"
-                value={alertsForm.email_address || ''}
-                onChange={e => setAlertsForm(f => ({ ...f, email_address: e.target.value }))} />
-            )}
-          </div>
-          <button className="btn btn-primary" onClick={saveAlertes} disabled={saving}>
             <Save size={15} />{saving ? 'Sauvegarde…' : 'Sauvegarder'}
           </button>
         </div>

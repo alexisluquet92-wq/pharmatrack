@@ -4,18 +4,20 @@ import Link from 'next/link';
 import { Package, AlertTriangle, TrendingDown, Euro, ArrowRight } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, ResponsiveContainer, Legend } from 'recharts';
 import { sdb } from '@/lib/supabase-db';
-import { computeUrgency, daysUntil, isPharmaceutical } from '@/lib/data';
-import type { Product } from '@/lib/data';
+import { computeUrgency, daysUntil } from '@/lib/data';
+import type { Product, Parapharmacie } from '@/lib/data';
 
 const URGENCY_COLORS = { expired: '#dc2626', critical: '#ea580c', warning: '#ca8a04', ok: '#16a34a' };
-const URGENCY_LABELS = { expired: 'Périmés', critical: 'Critiques', warning: 'Attention', ok: 'OK' };
 
 export default function DashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [parapharmacie, setParapharmacie] = useState<Parapharmacie[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    sdb.products.getAll().then(p => { setProducts(p); setLoading(false); });
+    Promise.all([sdb.products.getAll(), sdb.parapharmacie.getAll()]).then(([p, para]) => {
+      setProducts(p); setParapharmacie(para); setLoading(false);
+    });
   }, []);
 
   if (loading) {
@@ -43,11 +45,9 @@ export default function DashboardPage() {
     { name: 'OK', count: ok.length, fill: URGENCY_COLORS.ok },
   ];
 
-  const pharma = products.filter(p => isPharmaceutical(p.cip_code));
-  const para = products.filter(p => !isPharmaceutical(p.cip_code));
   const pieData = [
-    { name: 'Médicaments', value: pharma.length, fill: '#0ea5e9' },
-    { name: 'Parapharmacie', value: para.length, fill: '#8b5cf6' },
+    { name: 'Médicaments', value: products.length, fill: '#0ea5e9' },
+    { name: 'Parapharmacie', value: parapharmacie.length, fill: '#8b5cf6' },
   ].filter(d => d.value > 0);
 
   const topExpiring = withUrgency
@@ -55,6 +55,7 @@ export default function DashboardPage() {
     .sort((a, b) => a.days - b.days)
     .slice(0, 10);
 
+  const totalRefs = products.length + parapharmacie.length;
   const fmt = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
@@ -62,14 +63,14 @@ export default function DashboardPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Tableau de bord</h1>
-          <div className="page-subtitle">{products.length} produit{products.length !== 1 ? 's' : ''} en stock</div>
+          <div className="page-subtitle">{totalRefs} référence{totalRefs !== 1 ? 's' : ''} en stock</div>
         </div>
         <Link href="/alerts" className="btn btn-primary" style={{ fontSize: 13 }}>
           Voir les alertes <ArrowRight size={15} />
         </Link>
       </div>
 
-      {products.length === 0 ? (
+      {products.length === 0 && parapharmacie.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '64px 24px', background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--border)' }}>
           <Package size={48} color="var(--text-muted)" style={{ marginBottom: 16, opacity: 0.5 }} />
           <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>Aucun produit importé</div>
@@ -83,7 +84,8 @@ export default function DashboardPage() {
               <div className="kpi-icon" style={{ background: '#eff6ff' }}><Package size={22} color="#3b82f6" /></div>
               <div className="kpi-content">
                 <div className="kpi-value">{products.length}</div>
-                <div className="kpi-label">Références en stock</div>
+                <div className="kpi-label">Médicaments en stock</div>
+                {parapharmacie.length > 0 && <div className="kpi-trend" style={{ color: 'var(--text-muted)' }}>+ {parapharmacie.length} parapharmacie</div>}
               </div>
             </div>
             <div className="kpi-card">
@@ -99,7 +101,7 @@ export default function DashboardPage() {
               <div className="kpi-content">
                 <div className="kpi-value" style={{ color: 'var(--orange-600)' }}>{atRisk.length}</div>
                 <div className="kpi-label">À risque (≤30j)</div>
-                <div className="kpi-trend" style={{ color: 'var(--text-muted)' }}>sur {products.length} références</div>
+                <div className="kpi-trend" style={{ color: 'var(--text-muted)' }}>sur {products.length} médicaments</div>
               </div>
             </div>
             <div className="kpi-card">
@@ -171,9 +173,9 @@ export default function DashboardPage() {
                     {topExpiring.map(p => {
                       const urg = p.urgency;
                       const badgeClass = urg === 'expired' ? 'badge-expired' : urg === 'critical' ? 'badge-critical' : 'badge-warning';
-                      const label = urg === 'expired' ? 'Périmé' : urg === 'critical' ? `${p.days}j` : `${p.days}j`;
+                      const label = urg === 'expired' ? 'Périmé' : `${p.days}j`;
                       return (
-                        <tr key={p.id} className={urg === 'expired' ? 'row-critical' : urg === 'critical' ? 'row-critical' : 'row-warning'}>
+                        <tr key={p.id} className={urg === 'expired' || urg === 'critical' ? 'row-critical' : 'row-warning'}>
                           <td>
                             <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>{p.nom}</div>
                             {p.cip_code && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.cip_code}</div>}
