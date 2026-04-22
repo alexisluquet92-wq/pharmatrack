@@ -1,14 +1,26 @@
 'use client';
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { createClient } from '@/lib/supabase';
 import { sdb } from '@/lib/supabase-db';
 import type { Pharmacy } from '@/lib/data';
 import type { User } from '@supabase/supabase-js';
 
 const EMPTY_PHARMACY: Pharmacy = {
-  id: '', nom: '', finess: '', adresse: '', code_postal: '', ville: '',
-  telephone: '', email: '', pharmacien: '', plan: 'starter', has_real_data: false,
+  id: '', nom: '', adresse: '', code_postal: '', ville: '',
+  telephone: '', email: '', pharmacien: '', plan: 'starter',
 };
+
+// Remove stale localStorage keys written by the old localStorage-based app
+function clearLegacyLocalStorage() {
+  const legacy = [
+    'pt_user', 'pt_session', 'pt_pharmacy', 'pt_products',
+    'pt_returns', 'pt_return_items', 'pt_reports', 'pt_alerts_config',
+    'pt_import_history', 'pharmatrack_stock', 'pharmatrack_import_meta',
+  ];
+  legacy.forEach(k => {
+    try { localStorage.removeItem(k); } catch { /* SSR */ }
+  });
+}
 
 interface AuthContextValue {
   user: { id: string; email: string; last_sign_in_at?: string } | null;
@@ -31,7 +43,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (profile) {
       setPharmacy(profile);
     } else {
-      // Create profile from auth metadata
       const meta = sbUser.user_metadata;
       const initial: Partial<Pharmacy> = {
         pharmacien: meta?.full_name || meta?.pharmacien || '',
@@ -52,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (sbUser) {
       setUser({ id: sbUser.id, email: sbUser.email ?? '', last_sign_in_at: sbUser.last_sign_in_at });
       await loadPharmacy(sbUser);
+      clearLegacyLocalStorage();
     } else {
       setUser(null);
       setPharmacy({ ...EMPTY_PHARMACY });
@@ -68,22 +80,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, [syncUser]);
 
-  const signIn = async (email: string, password: string): Promise<{ error: string | null }> => {
+  const signIn = useCallback(async (email: string, password: string): Promise<{ error: string | null }> => {
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: error.message };
     return { error: null };
-  };
+  }, []);
 
-  const signOut = () => {
+  const signOut = useCallback(() => {
     const supabase = createClient();
     supabase.auth.signOut();
     setUser(null);
     setPharmacy({ ...EMPTY_PHARMACY });
-  };
+  }, []);
+
+  const value = useMemo<AuthContextValue>(
+    () => ({ user, pharmacy, loading, signIn, signOut, refreshPharmacy }),
+    [user, pharmacy, loading, signIn, signOut, refreshPharmacy]
+  );
 
   return (
-    <AuthContext.Provider value={{ user, pharmacy, loading, signIn, signOut, refreshPharmacy }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

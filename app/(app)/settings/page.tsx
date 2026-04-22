@@ -16,13 +16,18 @@ export default function SettingsPage() {
   const [pwdForm, setPwdForm] = useState({ newPwd: '', confirm: '' });
   const [saving, setSaving] = useState(false);
 
+  // Depend only on pharmacy.id (primitive), not the full object —
+  // loadPharmacy returns a new object reference on each auth sync even when
+  // data is identical, so [pharmacy] would reset the form on every keystroke.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    if (!pharmacy.id) return;
     setPharmaForm({
       nom: pharmacy.nom, adresse: pharmacy.adresse,
       code_postal: pharmacy.code_postal, ville: pharmacy.ville,
       telephone: pharmacy.telephone, email: pharmacy.email, pharmacien: pharmacy.pharmacien,
     });
-  }, [pharmacy]);
+  }, [pharmacy.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function savePharmacie() {
     setSaving(true);
