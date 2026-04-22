@@ -17,7 +17,7 @@ export const sdb = {
       if (!user) return null;
       const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
       if (!data) return null;
-      return { ...data, id: user.id, has_real_data: true, plan: (data.plan || 'starter') } as Pharmacy;
+      return { ...data, id: user.id, plan: (data.plan || 'starter') } as Pharmacy;
     },
     upsert: async (partial: Partial<Omit<Pharmacy, 'id'>>): Promise<void> => {
       const supabase = createClient();

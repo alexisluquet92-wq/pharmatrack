@@ -26,7 +26,6 @@ CREATE TABLE IF NOT EXISTS profiles (
 
   -- Champs pharmacie (utilisés par sdb.pharmacy)
   nom         text,
-  finess      text,
   adresse     text,
   code_postal text,
   ville       text,
@@ -34,7 +33,6 @@ CREATE TABLE IF NOT EXISTS profiles (
   email       text,
   pharmacien  text,
   plan        text NOT NULL DEFAULT 'starter',
-  has_real_data boolean NOT NULL DEFAULT false,
 
   updated_at  timestamptz DEFAULT now()
 );

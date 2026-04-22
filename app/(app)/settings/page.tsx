@@ -3,36 +3,48 @@ import { useState, useEffect } from 'react';
 import { Save, Building2, Lock } from 'lucide-react';
 import { sdb } from '@/lib/supabase-db';
 import { createClient } from '@/lib/supabase';
-import { useAuth } from '@/lib/auth-context';
-import type { Pharmacy } from '@/lib/data';
 import toast, { Toaster } from 'react-hot-toast';
 
 type Tab = 'pharmacie' | 'securite';
 
+type PharmaForm = {
+  nom: string;
+  adresse: string;
+  code_postal: string;
+  ville: string;
+  telephone: string;
+  email: string;
+  pharmacien: string;
+};
+
+const EMPTY_FORM: PharmaForm = {
+  nom: '', adresse: '', code_postal: '', ville: '', telephone: '', email: '', pharmacien: '',
+};
+
 export default function SettingsPage() {
-  const { pharmacy, refreshPharmacy } = useAuth();
   const [tab, setTab] = useState<Tab>('pharmacie');
-  const [pharmaForm, setPharmaForm] = useState<Partial<Pharmacy>>({});
+  const [pharmaForm, setPharmaForm] = useState<PharmaForm>(EMPTY_FORM);
   const [pwdForm, setPwdForm] = useState({ newPwd: '', confirm: '' });
   const [saving, setSaving] = useState(false);
 
-  // Depend only on pharmacy.id (primitive), not the full object —
-  // loadPharmacy returns a new object reference on each auth sync even when
-  // data is identical, so [pharmacy] would reset the form on every keystroke.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (!pharmacy.id) return;
-    setPharmaForm({
-      nom: pharmacy.nom, adresse: pharmacy.adresse,
-      code_postal: pharmacy.code_postal, ville: pharmacy.ville,
-      telephone: pharmacy.telephone, email: pharmacy.email, pharmacien: pharmacy.pharmacien,
+    sdb.pharmacy.get().then(p => {
+      if (!p) return;
+      setPharmaForm({
+        nom: p.nom ?? '',
+        adresse: p.adresse ?? '',
+        code_postal: p.code_postal ?? '',
+        ville: p.ville ?? '',
+        telephone: p.telephone ?? '',
+        email: p.email ?? '',
+        pharmacien: p.pharmacien ?? '',
+      });
     });
-  }, [pharmacy.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   async function savePharmacie() {
     setSaving(true);
     await sdb.pharmacy.upsert(pharmaForm);
-    refreshPharmacy();
     toast.success('Informations sauvegardées');
     setSaving(false);
   }
@@ -58,8 +70,9 @@ export default function SettingsPage() {
     setSaving(false);
   }
 
-  const inputProps = (label: string, key: keyof Pharmacy, type = 'text') => ({
-    id: key, type, value: (pharmaForm[key] as string) || '',
+  const field = (label: string, key: keyof PharmaForm, type = 'text') => ({
+    id: key, type,
+    value: pharmaForm[key],
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => setPharmaForm(f => ({ ...f, [key]: e.target.value })),
     className: 'form-input',
     placeholder: label,
@@ -98,35 +111,35 @@ export default function SettingsPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
             <div>
               <label htmlFor="nom" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Nom de la pharmacie</label>
-              <input {...inputProps('Pharmacie de la Mairie', 'nom')} />
+              <input {...field('Pharmacie de la Mairie', 'nom')} />
             </div>
             <div>
               <label htmlFor="pharmacien" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Pharmacien titulaire</label>
-              <input {...inputProps('Dr. Dupont', 'pharmacien')} />
+              <input {...field('Dr. Dupont', 'pharmacien')} />
             </div>
           </div>
           <div style={{ marginBottom: 16 }}>
             <label htmlFor="adresse" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Adresse</label>
-            <input {...inputProps('1 rue de la Paix', 'adresse')} />
+            <input {...field('1 rue de la Paix', 'adresse')} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 12, marginBottom: 16 }}>
             <div>
               <label htmlFor="code_postal" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Code postal</label>
-              <input {...inputProps('75000', 'code_postal')} />
+              <input {...field('75000', 'code_postal')} />
             </div>
             <div>
               <label htmlFor="ville" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Ville</label>
-              <input {...inputProps('Paris', 'ville')} />
+              <input {...field('Paris', 'ville')} />
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
             <div>
               <label htmlFor="telephone" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Téléphone</label>
-              <input {...inputProps('01 23 45 67 89', 'telephone')} type="tel" />
+              <input {...field('01 23 45 67 89', 'telephone', 'tel')} />
             </div>
             <div>
               <label htmlFor="email" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Email</label>
-              <input {...inputProps('pharmacie@example.fr', 'email')} type="email" />
+              <input {...field('pharmacie@example.fr', 'email', 'email')} />
             </div>
           </div>
           <button className="btn btn-primary" onClick={savePharmacie} disabled={saving}>

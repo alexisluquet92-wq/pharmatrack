@@ -11,7 +11,6 @@ export interface Pharmacy {
   email?: string;
   pharmacien?: string;
   plan: 'starter' | 'pro' | 'enterprise';
-  has_real_data?: boolean;
 }
 
 export interface Product {
@@ -71,7 +70,7 @@ export interface ImportHistory {
 const EMPTY_PHARMACY: Pharmacy = {
   id: '', nom: '', adresse: '', code_postal: '',
   ville: '', telephone: '', email: '', pharmacien: '',
-  plan: 'starter', has_real_data: false,
+  plan: 'starter',
 };
 
 export default EMPTY_PHARMACY;
