@@ -70,14 +70,6 @@ export default function SettingsPage() {
     setSaving(false);
   }
 
-  const field = (label: string, key: keyof PharmaForm, type = 'text') => ({
-    id: key, type,
-    value: pharmaForm[key],
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => setPharmaForm(f => ({ ...f, [key]: e.target.value })),
-    className: 'form-input',
-    placeholder: label,
-  });
-
   const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
     { key: 'pharmacie', label: 'Ma pharmacie', icon: <Building2 size={15} /> },
     { key: 'securite', label: 'Sécurité', icon: <Lock size={15} /> },
@@ -111,35 +103,35 @@ export default function SettingsPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
             <div>
               <label htmlFor="nom" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Nom de la pharmacie</label>
-              <input {...field('Pharmacie de la Mairie', 'nom')} />
+              <input id="nom" type="text" className="form-input" placeholder="Pharmacie de la Mairie" value={pharmaForm.nom} onChange={e => setPharmaForm(f => ({ ...f, nom: e.target.value }))} />
             </div>
             <div>
               <label htmlFor="pharmacien" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Pharmacien titulaire</label>
-              <input {...field('Dr. Dupont', 'pharmacien')} />
+              <input id="pharmacien" type="text" className="form-input" placeholder="Dr. Dupont" value={pharmaForm.pharmacien} onChange={e => setPharmaForm(f => ({ ...f, pharmacien: e.target.value }))} />
             </div>
           </div>
           <div style={{ marginBottom: 16 }}>
             <label htmlFor="adresse" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Adresse</label>
-            <input {...field('1 rue de la Paix', 'adresse')} />
+            <input id="adresse" type="text" className="form-input" placeholder="1 rue de la Paix" value={pharmaForm.adresse} onChange={e => setPharmaForm(f => ({ ...f, adresse: e.target.value }))} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 12, marginBottom: 16 }}>
             <div>
               <label htmlFor="code_postal" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Code postal</label>
-              <input {...field('75000', 'code_postal')} />
+              <input id="code_postal" type="text" className="form-input" placeholder="75000" value={pharmaForm.code_postal} onChange={e => setPharmaForm(f => ({ ...f, code_postal: e.target.value }))} />
             </div>
             <div>
               <label htmlFor="ville" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Ville</label>
-              <input {...field('Paris', 'ville')} />
+              <input id="ville" type="text" className="form-input" placeholder="Paris" value={pharmaForm.ville} onChange={e => setPharmaForm(f => ({ ...f, ville: e.target.value }))} />
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
             <div>
               <label htmlFor="telephone" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Téléphone</label>
-              <input {...field('01 23 45 67 89', 'telephone', 'tel')} />
+              <input id="telephone" type="tel" className="form-input" placeholder="01 23 45 67 89" value={pharmaForm.telephone} onChange={e => setPharmaForm(f => ({ ...f, telephone: e.target.value }))} />
             </div>
             <div>
               <label htmlFor="email" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Email</label>
-              <input {...field('pharmacie@example.fr', 'email', 'email')} />
+              <input id="email" type="email" className="form-input" placeholder="pharmacie@example.fr" value={pharmaForm.email} onChange={e => setPharmaForm(f => ({ ...f, email: e.target.value }))} />
             </div>
           </div>
           <button className="btn btn-primary" onClick={savePharmacie} disabled={saving}>
